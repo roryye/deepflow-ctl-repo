@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
 	"time"
 
-	servermysql "github.com/deepflowio/deepflow/server/controller/db/mysql"
+	trafficmysql "gitlab.yunshan.net/weiqiang/deepflow-ctl-traffic/mysql"
+
 	"github.com/op/go-logging"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -29,7 +31,15 @@ var (
 	duration = flag.Int("duration", 86400, "agent traffic duration, default: one day")
 )
 
+var format = logging.MustStringFormatter(
+	`%{time:2006-01-02 15:04:05.000} %{shortfile} %{level:.4s} %{message}`,
+)
+
 func init() {
+	backend := logging.NewLogBackend(os.Stdout, "", 0)
+	backendFormatter := logging.NewBackendFormatter(backend, format)
+	logging.SetBackend(backendFormatter)
+
 	flag.Parse()
 	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/deepflow?charset=utf8&parseTime=True&loc=Local&timeout=10s",
 		*user, *password, *ip, *port)
@@ -53,7 +63,7 @@ func init() {
 	}
 }
 
-type -customTime struct {
+type customTime struct {
 	time.Time
 }
 
@@ -70,7 +80,7 @@ func main() {
 	flag.Var(&t, "time", "specify the time (format: 'YYYY-MM-DD HH:MM:SS')")
 	flag.Parse()
 
-	data, err := NewAnalyzerInfo(false).RebalanceAnalyzerByTraffic(&servermysql.DB{DB: gormDB}, true, t.Time, *duration)
+	data, err := NewAnalyzerInfo(false).RebalanceAnalyzerByTraffic(&trafficmysql.DB{DB: gormDB, ORGID: 1}, true, t.Time, *duration)
 	if err != nil {
 		log.Error(err)
 		return

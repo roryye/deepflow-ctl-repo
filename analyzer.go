@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/deepflowio/deepflow/server/controller/common"
-	"github.com/deepflowio/deepflow/server/controller/db/mysql"
+	"gitlab.yunshan.net/weiqiang/deepflow-ctl-traffic/common"
+	"gitlab.yunshan.net/weiqiang/deepflow-ctl-traffic/mysql"
 	"gorm.io/gorm"
 )
 
@@ -42,23 +42,23 @@ func NewAnalyzerInfo(onlyWeight bool) *AnalyzerInfo {
 }
 
 func (r *DBInfo) Get(db *gorm.DB) error {
-	if err := mysql.Db.Find(&r.AZs).Error; err != nil {
+	if err := db.Find(&r.AZs).Error; err != nil {
 		return err
 	}
-	if err := mysql.Db.Find(&r.Analyzers).Error; err != nil {
+	if err := db.Find(&r.Analyzers).Error; err != nil {
 		return err
 	}
-	if err := mysql.Db.Find(&r.AZAnalyzerConns).Error; err != nil {
+	if err := db.Find(&r.AZAnalyzerConns).Error; err != nil {
 		return err
 	}
-	if err := mysql.Db.Where("type != ?", common.VTAP_TYPE_TUNNEL_DECAPSULATION).Find(&r.VTaps).Error; err != nil {
+	if err := db.Where("type != ?", common.VTAP_TYPE_TUNNEL_DECAPSULATION).Find(&r.VTaps).Error; err != nil {
 		return err
 	}
 
-	if err := mysql.Db.Find(&r.Controllers).Error; err != nil {
+	if err := db.Find(&r.Controllers).Error; err != nil {
 		return err
 	}
-	if err := mysql.Db.Find(&r.AZControllerConns).Error; err != nil {
+	if err := db.Find(&r.AZControllerConns).Error; err != nil {
 		return err
 	}
 	return nil

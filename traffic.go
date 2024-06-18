@@ -15,9 +15,9 @@ import (
 
 	"github.com/bitly/go-simplejson"
 
-	"github.com/deepflowio/deepflow/server/controller/common"
-	"github.com/deepflowio/deepflow/server/controller/db/mysql"
-	"github.com/deepflowio/deepflow/server/controller/model"
+	"gitlab.yunshan.net/weiqiang/deepflow-ctl-traffic/common"
+	"gitlab.yunshan.net/weiqiang/deepflow-ctl-traffic/model"
+	"gitlab.yunshan.net/weiqiang/deepflow-ctl-traffic/mysql"
 )
 
 func (r *AnalyzerInfo) RebalanceAnalyzerByTraffic(db *mysql.DB, ifCheckout bool, t time.Time, dataDuration int) (*model.VTapRebalanceResult, error) {
@@ -104,6 +104,8 @@ func (r *AnalyzerInfo) RebalanceAnalyzerByTraffic(db *mysql.DB, ifCheckout bool,
 			response.TotalSwitchVTapNum += azVTapRebalanceResult.TotalSwitchVTapNum
 			response.Details = append(response.Details, azVTapRebalanceResult.Details...)
 		}
+		log.Infof("azVTapRebalanceResult == nil: %v, TotalSwitchVTapNum: %v",
+			azVTapRebalanceResult == nil, azVTapRebalanceResult.TotalSwitchVTapNum)
 		if !r.onlyWeight && azVTapRebalanceResult != nil &&
 			azVTapRebalanceResult.TotalSwitchVTapNum != 0 {
 			for vtapID, changeInfo := range vTapIDToChangeInfo {
@@ -124,14 +126,23 @@ func (r *AnalyzerInfo) RebalanceAnalyzerByTraffic(db *mysql.DB, ifCheckout bool,
 				log.Infof("ORGID-%d DATABASE-%s analyzer rebalance result az(%v) ip(%v) before vtap traffic(%v), after vtap traffic(%v)",
 					db.ORGID, db.Name, detail.AZ, detail.IP, detail.BeforeVTapTraffic, detail.AfterVTapTraffic)
 				if len(detail.NewVTapToTraffic) > 0 {
-					b, _ := json.Marshal(detail.NewVTapToTraffic)
-					log.Infof("ORGID-%d DATABASE-%s analyzer rebalance result az(%v) ip(%v) vtap(to add) name to traffic: %s",
-						db.ORGID, db.Name, detail.AZ, detail.IP, string(b))
+					// fix
+					b, err := json.Marshal(detail.NewVTapToTraffic)
+					if err != nil {
+						log.Error(err)
+					} else {
+						log.Infof("ORGID-%d DATABASE-%s analyzer rebalance result az(%v) ip(%v) vtap(to add) name to traffic: %s",
+							db.ORGID, db.Name, detail.AZ, detail.IP, string(b))
+					}
 				}
 				if len(detail.DelVTapToTraffic) > 0 {
-					b, _ := json.Marshal(detail.DelVTapToTraffic)
-					log.Info("ORGID-%d DATABASE-%s analyzer rebalance result az(%v) ip(%v) vtap(to delete) name to traffic: %s",
-						db.ORGID, db.Name, detail.AZ, detail.IP, string(b))
+					b, err := json.Marshal(detail.DelVTapToTraffic)
+					if err != nil {
+						log.Error(err)
+					} else {
+						log.Info("ORGID-%d DATABASE-%s analyzer rebalance result az(%v) ip(%v) vtap(to delete) name to traffic: %s",
+							db.ORGID, db.Name, detail.AZ, detail.IP, string(b))
+					}
 				}
 
 			}
@@ -297,6 +308,9 @@ func (p *AZInfo) rebalanceAnalyzer(db *mysql.DB, ifCheckout bool) (map[int]*Chan
 
 		// beforeWeight counts the actual allocated vtap weight before balancing
 		beforeWeight, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(p.vTapIDToTraffic[vtap.ID])/float64(beforeTraffic)), 64)
+		if beforeTraffic == 0 {
+			beforeWeight = 0
+		}
 		for _, detail := range azVTapRebalanceResult.Details {
 			if detail.IP != vtap.AnalyzerIP {
 				continue

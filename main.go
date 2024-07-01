@@ -41,6 +41,7 @@ var (
 	password = flag.String("password", "", "mysql password")
 	ip       = flag.String("ip", "", "mysql ip")
 	port     = flag.String("port", "", "mysql port")
+	apiport  = flag.Int("api-port", 8321, "api port")
 
 	apiport  = flag.Int("api-port", 8321, "api port")
 	sizeInMB = flag.Int("m", 0, "size of storage image in MB")
@@ -75,7 +76,13 @@ func init() {
 		DontSupportRenameColumn:   true,  // 用 `change` 重命名列，MySQL 8 之前的数据库和 MariaDB 不支持重命名列
 		SkipInitializeWithVersion: false, // 根据当前 MySQL 版本自动配置
 	}), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.New(
+			l.New(os.Stdout, "\r\n", l.LstdFlags), // io writer
+			logger.Config{
+				SlowThreshold: time.Nanosecond, // 设置慢查询阈值为极短时间，以便实际上禁用慢查询日志
+				LogLevel:      logger.Silent,   // 禁用日志记录
+				Colorful:      false,           // 禁用彩色输出
+			}),
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true, // 使用单数表名
 		},

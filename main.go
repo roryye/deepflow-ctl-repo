@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	l "log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -36,7 +35,6 @@ var (
 
 	log = logging.MustGetLogger("main")
 
-	// dsn = "root:security421@tcp(10.233.28.187:30130)/deepflow?charset=utf8&parseTime=True&loc=Local&timeout=10s"
 	gormDB *gorm.DB
 
 	user     = flag.String("user", "", "mysql user")
@@ -44,6 +42,9 @@ var (
 	ip       = flag.String("ip", "", "mysql ip")
 	port     = flag.String("port", "", "mysql port")
 	apiport  = flag.Int("api-port", 8321, "api port")
+
+	apiport  = flag.Int("api-port", 8321, "api port")
+	sizeInMB = flag.Int("m", 0, "size of storage image in MB")
 
 	arch, image, versionImage, k8sImage string
 )
@@ -260,6 +261,7 @@ func createVtapRepo(c *gin.Context) {
 
 func CreateVtapRepo(orgID int, vtapRepoCreate *mysql.VTapRepo) error {
 	db := gormDB
+	imageData := vtapRepoCreate.Image
 	var vtapRepoFirst mysql.VTapRepo
 	if err := db.Where("name = ?", vtapRepoCreate.Name).First(&vtapRepoFirst).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -273,10 +275,34 @@ func CreateVtapRepo(orgID int, vtapRepoCreate *mysql.VTapRepo) error {
 		if count >= IMAGE_MAX_COUNT {
 			return fmt.Errorf("the number of image can not exceed %d", IMAGE_MAX_COUNT)
 		}
+		if sizeInMB != nil && *sizeInMB != 0 {
+			vtapRepoCreate.Image = nil
+		}
 		if err = db.Create(&vtapRepoCreate).Error; err != nil {
 			log.Error(err)
 			return err
 		}
+		if vtapRepoCreate.Image != nil {
+			return nil
+		}
+
+		imageSize := len(imageData)
+		log.Infof("imageSize: %v", imageSize)
+		chunkSize := *sizeInMB * 1024 * 1024
+		for i := 0; i < imageSize; i += chunkSize {
+			end := i + chunkSize
+			if end > imageSize {
+				end = imageSize
+			}
+			chunk := imageData[i:end]
+			log.Infof("update image (%v:%v)", i, end)
+			updateQuery := "UPDATE vtap_repo SET image = CONCAT(image, ?) WHERE name = ?"
+			if err := db.Exec(updateQuery, chunk, vtapRepoCreate.Name).Error; err != nil {
+				log.Errorf("index(%v) update error: %v", i, err)
+				return err
+			}
+		}
+
 		return nil
 	}
 
